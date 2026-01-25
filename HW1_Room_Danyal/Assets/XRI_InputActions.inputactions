@@ -1,0 +1,34 @@
+{
+    "name": "XRI_InputActions",
+    "maps": [
+        {
+            "name": "XRI",
+            "id": "ccff6686-00c2-4537-9773-49e9370ebc01",
+            "actions": [
+                {
+                    "name": "TestButton",
+                    "type": "Button",
+                    "id": "5567ebb9-2e8f-4763-b514-559cb9e5a2ae",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "7fd2b5ef-447e-4164-b5e1-235d1104c4d3",
+                    "path": "<XRController>/primaryButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "TestButton",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}
