@@ -1015,6 +1015,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 706bda9c93741ab4a9bd30ab0c735e82, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  toggleLightAction: {fileID: -1644001223835636349, guid: e0ca4504471ca124088e1e2cfe6804ae,
+    type: 3}
+  keyboardKey: 26
+  targetLight: {fileID: 169995968}
+  colors:
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 0, b: 0, a: 1}
+  - {r: 0, g: 1, b: 0, a: 1}
+  - {r: 0, g: 0, b: 1, a: 1}
 --- !u!1 &220791126
 GameObject:
   m_ObjectHideFlags: 0
@@ -1839,7 +1848,7 @@ Transform:
   m_GameObject: {fileID: 1295326830}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.6, z: -6}
+  m_LocalPosition: {x: 0, y: 1.6, z: -15}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2076,7 +2085,8 @@ MonoBehaviour:
   xrOrigin: {fileID: 1581820113}
   insideViewPoint: {fileID: 1494060959}
   outsideViewPoint: {fileID: 1295326831}
-  toggleAction: {fileID: 0}
+  toggleAction: {fileID: 5113088590926889233, guid: e0ca4504471ca124088e1e2cfe6804ae,
+    type: 3}
   keyboardKey: 16
 --- !u!1 &1831829278
 GameObject:
@@ -3044,9 +3054,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "WELCOME TO THE ROOM\r\n\r\nCONTROLS\r\nPrimary Button \u2013 Change Light
-    Color\r\nSecondary Button \u2013 Exit Application\r\nToggle Button \u2013 Switch
-    Inside / Outside View\r\n\n"
+  m_text: "WELCOME TO THE ROOM\r\n\r\nCONTROLS\r\nB \u2013 Change Light Color\r\nA
+    \u2013 Exit Application\r\nX \u2013 Switch Inside / Outside View\r\n\n"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
