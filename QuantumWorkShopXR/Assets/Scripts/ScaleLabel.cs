@@ -8,26 +8,17 @@ public class ScaleLabel : MonoBehaviour
 
     void Update()
     {
-        if (specimenAnchor == null || labelText == null) return;
+        if (labelText == null) return;
 
-        float scale = specimenAnchor.localScale.x;
+        float zoom = PinchZoom.ZoomLevel;
+        string unit, description;
 
-        // As sphere grows bigger = zooming IN = smaller real world units
-        // scale 1 = 1m, scale 5 = 1mm, scale 25 = 1um, scale 125 = 1nm, scale 625 = 1pm
-        float realSize = 1f / scale; // inverse relationship
+        if (zoom < 2f) { unit = "~ 1 m"; description = "Human scale"; }
+        else if (zoom < 20f) { unit = "~ 1 mm"; description = "Cell scale"; }
+        else if (zoom < 200f) { unit = "~ 1 um"; description = "Molecular scale"; }
+        else if (zoom < 2000f) { unit = "~ 1 nm"; description = "Atomic scale"; }
+        else { unit = "~ 1 pm"; description = "Nuclear scale"; }
 
-        string display;
-        if (realSize >= 0.01f)
-            display = $"Scale: {realSize:F2} m";
-        else if (realSize >= 0.00001f)
-            display = $"Scale: {realSize * 1000f:F2} mm";
-        else if (realSize >= 0.000000001f)
-            display = $"Scale: {realSize * 1e6f:F2} μm";
-        else if (realSize >= 0.000000000001f)
-            display = $"Scale: {realSize * 1e9f:F2} nm";
-        else
-            display = $"Scale: {realSize * 1e12f:F2} pm";
-
-        labelText.text = display;
+        labelText.text = $"{unit}\n{description}";
     }
 }
