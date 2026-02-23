@@ -2,51 +2,53 @@ using UnityEngine;
 
 public class PinchZoom : MonoBehaviour
 {
-    [Header("Assign in Inspector")]
-    public Transform specimenAnchor;
+    public float minScale = 0.5f;
+    public float maxScale = 500f;
+    public float sensitivity = 1.5f;
+    public float deadzone = 0.012f;
 
-    [Header("Scale Settings")]
-    public float minScale = 0.05f;
-    public float maxScale = 5f;
-    public float sensitivity = 2f;
-    public float pinchThreshold = 0.7f;
-
-    private bool wasPinching = false;
+    private Transform leftWrist;
+    private Transform rightWrist;
     private float prevDistance = 0f;
 
     void Update()
     {
-        float leftPinch = OVRInput.Get(OVRInput.Axis1D.PrimaryIndexTrigger,
-                                        OVRInput.Controller.LHand);
-        float rightPinch = OVRInput.Get(OVRInput.Axis1D.PrimaryIndexTrigger,
-                                         OVRInput.Controller.RHand);
-
-        bool bothPinching = leftPinch > pinchThreshold && rightPinch > pinchThreshold;
-
-        Vector3 leftPos = OVRInput.GetLocalControllerPosition(OVRInput.Controller.LHand);
-        Vector3 rightPos = OVRInput.GetLocalControllerPosition(OVRInput.Controller.RHand);
-
-        if (bothPinching)
+        if (leftWrist == null || rightWrist == null)
         {
-            float currentDistance = Vector3.Distance(leftPos, rightPos);
-
-            if (wasPinching)
+            GameObject[] allObjects = FindObjectsOfType<GameObject>();
+            foreach (var obj in allObjects)
             {
-                float delta = currentDistance - prevDistance;
-                float currentScale = specimenAnchor.localScale.x;
-                float newScale = Mathf.Clamp(
-                    currentScale * (1f + delta * sensitivity),
-                    minScale, maxScale
-                );
-                specimenAnchor.localScale = Vector3.one * newScale;
+                if (obj.name == "XRHand_Wrist" && obj.activeInHierarchy)
+                {
+                    string path = GetPath(obj.transform);
+                    if (path.Contains("LeftInteractions") || path.Contains("OVRLeftHand"))
+                        leftWrist = obj.transform;
+                    else if (path.Contains("RightInteractions") || path.Contains("OVRRightHand"))
+                        rightWrist = obj.transform;
+                }
             }
+            return;
+        }
 
-            prevDistance = currentDistance;
-            wasPinching = true;
-        }
-        else
+        float currentDistance = Vector3.Distance(leftWrist.position, rightWrist.position);
+        float delta = currentDistance - prevDistance;
+
+        if (Mathf.Abs(delta) > deadzone)
         {
-            wasPinching = false;
+            float newScale = Mathf.Clamp(
+                specimenAnchor.localScale.x * (1f + delta * sensitivity),
+                minScale, maxScale
+            );
+            specimenAnchor.localScale = Vector3.one * newScale;
         }
+
+        prevDistance = currentDistance;
+    }
+
+    string GetPath(Transform t)
+    {
+        string path = t.name;
+        while (t.parent != null) { t = t.parent; path = t.name + "/" + path; }
+        return path;
     }
 }
