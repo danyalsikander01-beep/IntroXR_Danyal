@@ -3,11 +3,11 @@ using System.Collections;
 using TMPro;
 
 /// <summary>
-/// Transition: pulse -> shrink -> hide specimen -> voice -> spawn atom -> show periodic table.
+/// Transition: pulse -> shrink -> voice -> spawn atom -> show table -> start game.
 ///
 /// SETUP:
 /// 1. Attach to QuantumTransition GameObject
-/// 2. Also attach AtomBuilder.cs AND PeriodicTableUI.cs to the SAME GameObject
+/// 2. Also attach: AtomBuilder, PeriodicTableUI, ElectronGame (all on SAME object)
 /// 3. Wire references in Inspector
 /// </summary>
 public class QuantumTransition : MonoBehaviour
@@ -43,33 +43,21 @@ public class QuantumTransition : MonoBehaviour
     void Start()
     {
         InQuantumWorld = false;
-
-        if (specimen != null)
+        if (specimen)
         {
             specimenRenderer = specimen.GetComponent<Renderer>();
-            if (specimenRenderer != null)
-                originalColor = specimenRenderer.material.color;
+            if (specimenRenderer) originalColor = specimenRenderer.material.color;
         }
-
         audioSource = gameObject.AddComponent<AudioSource>();
         audioSource.playOnAwake = false;
         audioSource.spatialBlend = 0f;
-
-        Debug.Log("[QT] QuantumTransition ready. Trigger at zoom: " + triggerZoomLevel);
     }
 
     void Update()
     {
         if (transitioned) return;
-
-        if (Time.frameCount % 120 == 0 && PinchZoom.ZoomLevel > 10f)
-        {
-            Debug.Log("[QT] Current zoom: " + PinchZoom.ZoomLevel.ToString("F0"));
-        }
-
         if (PinchZoom.ZoomLevel >= triggerZoomLevel)
         {
-            Debug.Log("[QT] TRIGGER! Zoom reached " + PinchZoom.ZoomLevel.ToString("F0"));
             transitioned = true;
             StartCoroutine(TransitionSequence());
         }
@@ -77,122 +65,85 @@ public class QuantumTransition : MonoBehaviour
 
     IEnumerator TransitionSequence()
     {
-        // ---- Freeze zooming ----
-        PinchZoom pinchZoom = specimen != null ? specimen.GetComponent<PinchZoom>() : null;
-        if (pinchZoom != null)
-            pinchZoom.enabled = false;
+        PinchZoom pz = specimen ? specimen.GetComponent<PinchZoom>() : null;
+        if (pz) pz.enabled = false;
+        if (scaleLabelScript) scaleLabelScript.enabled = false;
+        if (scaleLabel) scaleLabel.text = "Entering the\nQuantum World...";
 
-        // ---- Disable ScaleLabel updates ----
-        if (scaleLabelScript != null)
-            scaleLabelScript.enabled = false;
-
-        // ---- Update label ----
-        if (scaleLabel != null)
-            scaleLabel.text = "Entering the\nQuantum World...";
-
-        Debug.Log("[QT] Step 1: Pulse");
-
-        // ---- Pulse bright ----
-        if (specimenRenderer != null)
+        // Pulse
+        if (specimenRenderer)
         {
-            float elapsed = 0f;
-            Material mat = specimenRenderer.material;
-            while (elapsed < pulseTime)
+            float e = 0; Material mat = specimenRenderer.material;
+            while (e < pulseTime)
             {
-                elapsed += Time.deltaTime;
-                float t = elapsed / pulseTime;
-                float intensity = Mathf.Sin(t * Mathf.PI);
-                mat.color = Color.Lerp(originalColor, pulseColor, intensity);
+                e += Time.deltaTime;
+                mat.color = Color.Lerp(originalColor, pulseColor, Mathf.Sin(e / pulseTime * Mathf.PI));
                 yield return null;
             }
             mat.color = originalColor;
         }
 
-        Debug.Log("[QT] Step 2: Shrink");
-
-        // ---- Shrink specimen to zero ----
-        if (specimenAnchor != null)
+        // Shrink
+        if (specimenAnchor)
         {
-            float elapsed = 0f;
-            Vector3 startScale = specimenAnchor.localScale;
-            while (elapsed < shrinkTime)
+            float e = 0; Vector3 ss = specimenAnchor.localScale;
+            while (e < shrinkTime)
             {
-                elapsed += Time.deltaTime;
-                float t = elapsed / shrinkTime;
-                float curve = 1f - (1f - t) * (1f - t);
-                specimenAnchor.localScale = Vector3.Lerp(startScale, Vector3.zero, curve);
+                e += Time.deltaTime;
+                float t = e / shrinkTime;
+                specimenAnchor.localScale = Vector3.Lerp(ss, Vector3.zero, 1f - (1f - t) * (1f - t));
                 yield return null;
             }
         }
 
-        // ---- Deactivate specimen ----
-        if (specimen != null)
-            specimen.SetActive(false);
+        if (specimen) specimen.SetActive(false);
 
-        Debug.Log("[QT] Step 3: Specimen hidden");
-
-        // ---- Play voice ----
-        if (welcomeVoice != null && audioSource != null)
+        // Voice
+        if (welcomeVoice && audioSource)
         {
             audioSource.clip = welcomeVoice;
             audioSource.volume = voiceVolume;
             audioSource.Play();
         }
 
-        // ---- Pause before atom ----
         yield return new WaitForSeconds(pauseBeforeAtom);
+        if (specimenAnchor) specimenAnchor.localScale = Vector3.one;
 
-        // ---- Reset anchor scale ----
-        if (specimenAnchor != null)
-            specimenAnchor.localScale = Vector3.one;
-
-        // ---- Build initial random atom ----
+        // Build atom
         AtomBuilder builder = GetComponent<AtomBuilder>();
         GameObject atomRoot = null;
-
-        if (builder != null)
+        if (builder)
         {
             atomRoot = builder.BuildAtom(specimenAnchor);
-            Debug.Log("[QT] Step 4: Atom built - " + builder.GetCurrentElementName());
-        }
-        else
-        {
-            Debug.LogError("[QT] AtomBuilder not found! Add it to the same GameObject.");
+            // Show electrons for initial display
+            builder.FillAllElectrons();
         }
 
-        // ---- Grow atom in ----
-        if (atomRoot != null)
+        // Grow in
+        if (atomRoot)
         {
             atomRoot.transform.localScale = Vector3.zero;
-            float elapsed = 0f;
-            while (elapsed < atomGrowTime)
+            float e = 0;
+            while (e < atomGrowTime)
             {
-                elapsed += Time.deltaTime;
-                float t = elapsed / atomGrowTime;
-                float curve = 1f - Mathf.Pow(1f - t, 3f);
-                atomRoot.transform.localScale = Vector3.one * curve;
+                e += Time.deltaTime;
+                atomRoot.transform.localScale = Vector3.one * (1f - Mathf.Pow(1f - e / atomGrowTime, 3f));
                 yield return null;
             }
             atomRoot.transform.localScale = Vector3.one;
         }
 
-        // ---- Update label ----
-        if (scaleLabel != null && builder != null)
+        if (scaleLabel && builder)
             scaleLabel.text = "Quantum World\n" + builder.GetCurrentElementName();
 
-        // ---- Show periodic table for element selection ----
-        PeriodicTableUI tableUI = GetComponent<PeriodicTableUI>();
-        if (tableUI != null)
-        {
-            tableUI.ShowTable(specimenAnchor, builder, scaleLabel);
-            Debug.Log("[QT] Step 5: Periodic table shown");
-        }
-        else
-        {
-            Debug.Log("[QT] PeriodicTableUI not found - skipping element selection");
-        }
+        // Show periodic table
+        PeriodicTableUI table = GetComponent<PeriodicTableUI>();
+        if (table) table.ShowTable(specimenAnchor, builder, scaleLabel);
 
-        Debug.Log("[QT] Transition complete!");
+        // Note: ElectronGame starts when user selects an element from periodic table
+        // The initial random atom just shows with all electrons filled (display mode)
+
         InQuantumWorld = true;
+        Debug.Log("[QT] Transition complete!");
     }
 }

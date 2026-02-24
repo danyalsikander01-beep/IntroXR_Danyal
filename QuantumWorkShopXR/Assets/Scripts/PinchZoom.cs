@@ -8,7 +8,7 @@ public class PinchZoom : MonoBehaviour
     public float minZoom = 1f;
     public float maxZoom = 2500f;
     public float maxVisualScale = 1.2f;
-    public float minVisualScale = 0.3f;
+    public float minVisualScale = 0.15f;
 
     [Header("Pinch Settings")]
     public float pinchThreshold = 0.025f;

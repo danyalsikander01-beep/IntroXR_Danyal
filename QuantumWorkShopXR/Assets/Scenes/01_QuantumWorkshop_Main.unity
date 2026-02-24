@@ -2519,6 +2519,7 @@ GameObject:
   - component: {fileID: 1859608535}
   - component: {fileID: 1859608537}
   - component: {fileID: 1859608538}
+  - component: {fileID: 1859608539}
   m_Layer: 0
   m_Name: QuantumTransition
   m_TagString: Untagged
@@ -2582,19 +2583,19 @@ MonoBehaviour:
   shellBaseRadius: 0.15
   shellSpacing: 0.14
   ringLineWidth: 0.003
-  sLineWidth: 0.004
-  pLobeWidth: 0.03
-  shellLabelSize: 6
-  orbitalLabelSize: 5
-  elementLabelSize: 8
+  sAlpha: 0.12
+  pLobeFat: 0.02
   protonColor: {r: 0.95, g: 0.25, b: 0.25, a: 1}
   neutronColor: {r: 0.3, g: 0.5, b: 1, a: 1}
   shellRingColor: {r: 0.6, g: 0.6, b: 0.6, a: 0.7}
-  sOrbitalColor: {r: 0, g: 0.9, b: 1, a: 0.6}
+  sColor: {r: 0, g: 0.9, b: 1, a: 0.12}
   pxColor: {r: 1, g: 0.55, b: 0, a: 0.5}
   pyColor: {r: 0.5, g: 1, b: 0.2, a: 0.5}
   pzColor: {r: 1, g: 0.3, b: 0.8, a: 0.5}
-  labelColor: {r: 1, g: 1, b: 1, a: 1}
+  electronColor: {r: 1, g: 1, b: 0.3, a: 1}
+  shellRingObjects: []
+  shellRadii: []
+  shellCount: 0
 --- !u!114 &1859608538
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2607,21 +2608,45 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2df0dc443eebad344ae5af668923cebd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  rightOffset: 0.5
+  downOffset: 0.15
+  forwardOffset: 0.6
+  followSpeed: 3
   blockSize: 0.04
   blockGap: 0.006
   blockDepth: 0.008
-  tableOffset: {x: 0, y: 0.35, z: 0}
-  highlightDistance: 0.06
-  selectDistance: 0.03
-  selectCooldown: 1
-  reactiveNonmetalColor: {r: 0.5, g: 0.9, b: 0.5, a: 1}
-  nobleGasColor: {r: 0.7, g: 0.5, b: 1, a: 1}
-  alkaliMetalColor: {r: 1, g: 0.4, b: 0.35, a: 1}
-  alkalineEarthColor: {r: 1, g: 0.7, b: 0.2, a: 1}
-  metalloidColor: {r: 0.3, g: 0.8, b: 0.8, a: 1}
-  nonmetalColor: {r: 0.4, g: 0.85, b: 0.4, a: 1}
-  halogenColor: {r: 0.4, g: 0.7, b: 1, a: 1}
-  postTransitionColor: {r: 0.7, g: 0.7, b: 0.8, a: 1}
+  highlightDist: 0.06
+  selectDist: 0.03
+  cooldown: 1
+  nonmetalC: {r: 0.5, g: 0.9, b: 0.5, a: 1}
+  nobleC: {r: 0.7, g: 0.5, b: 1, a: 1}
+  alkaliC: {r: 1, g: 0.4, b: 0.35, a: 1}
+  alkalineC: {r: 1, g: 0.7, b: 0.2, a: 1}
+  metalloidC: {r: 0.3, g: 0.8, b: 0.8, a: 1}
+  postTransC: {r: 0.7, g: 0.7, b: 0.8, a: 1}
+  halogenC: {r: 0.4, g: 0.7, b: 1, a: 1}
+--- !u!114 &1859608539
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1859608534}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8844e74cc2f0263429fea6b2ef2fa49a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sourceOffsetX: -0.2
+  sourceOffsetY: -0.05
+  sourceSize: 0.03
+  sourceColor: {r: 1, g: 1, b: 0.3, a: 1}
+  grabDist: 0.06
+  pinchThreshold: 0.025
+  pinchRelease: 0.045
+  shellSnapDist: 0.05
+  correctColor: {r: 0, g: 1, b: 0.3, a: 1}
+  wrongColor: {r: 1, g: 0.2, b: 0.2, a: 1}
 --- !u!1 &1942813462
 GameObject:
   m_ObjectHideFlags: 0
