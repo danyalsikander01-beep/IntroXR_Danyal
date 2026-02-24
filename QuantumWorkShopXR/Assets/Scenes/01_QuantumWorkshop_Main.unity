@@ -439,7 +439,6 @@ MonoBehaviour:
   deadZone: 0.008
   smoothing: 0.85
   zoomSensitivity: 1.5
-  debugLabel: {fileID: 0}
 --- !u!4 &349135923
 Transform:
   m_ObjectHideFlags: 0
@@ -777,16 +776,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   minZoom: 1
-  maxZoom: 2000
-  maxVisualScale: 0.4
-  minVisualScale: 0.05
+  maxZoom: 2500
+  maxVisualScale: 1.2
+  minVisualScale: 0.3
   pinchThreshold: 0.025
   pinchReleaseThreshold: 0.045
   activationRadius: 0.5
-  deadZone: 0.008
-  smoothing: 0.85
-  zoomSensitivity: 1.5
-  debugLabel: {fileID: 1238698061}
+  deadZone: 0.015
+  smoothing: 0.93
+  zoomSensitivity: 1
 --- !u!1 &524110526
 GameObject:
   m_ObjectHideFlags: 0
@@ -2080,7 +2078,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1507074067}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9e1c6298f2d11e846b896333e478bf3f, type: 3}
   m_Name: 
@@ -2509,6 +2507,79 @@ MonoBehaviour:
   installationRoutineCheckpoint:
     _installationRoutineId: 2063f481-1b63-4eda-9ee8-a00df98536bc
     _installationVariants: []
+--- !u!1 &1859608534
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1859608536}
+  - component: {fileID: 1859608535}
+  - component: {fileID: 1859608537}
+  m_Layer: 0
+  m_Name: QuantumTransition
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1859608535
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1859608534}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1b45aa09c240494385829fabde92eb2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  specimenAnchor: {fileID: 524110527}
+  specimen: {fileID: 470742004}
+  scaleLabel: {fileID: 1238698061}
+  scaleLabelScript: {fileID: 1507074068}
+  welcomeVoice: {fileID: 8300000, guid: 27cf0870ba0626545943be34397646d5, type: 3}
+  voiceVolume: 1
+  triggerZoomLevel: 2400
+  pulseTime: 0.6
+  shrinkTime: 0.8
+  pauseBeforeAtom: 0.5
+  atomGrowTime: 1
+  pulseColor: {r: 0.5, g: 1, b: 1, a: 1}
+--- !u!4 &1859608536
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1859608534}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1859608537
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1859608534}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 391e40077c78e824ea5a9dbef0ab0455, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  nucleusRadius: 0.06
+  nucleonSize: 0.02
+  protonColor: {r: 0.95, g: 0.25, b: 0.25, a: 1}
+  neutronColor: {r: 0.3, g: 0.5, b: 1, a: 1}
 --- !u!1 &1942813462
 GameObject:
   m_ObjectHideFlags: 0
@@ -2733,3 +2804,4 @@ SceneRoots:
   - {fileID: 1301547808}
   - {fileID: 349135923}
   - {fileID: 691423817}
+  - {fileID: 1859608536}
