@@ -3,20 +3,23 @@ using TMPro;
 using System.Collections.Generic;
 
 /// <summary>
-/// Creates an interactive periodic table (first 20 elements) in 3D space.
-/// Detects when the player's index fingertip touches a block to select it.
-/// Calls AtomBuilder to spawn the selected element's atom.
+/// Interactive periodic table (first 20 elements).
+/// FIXED: Positioned to the RIGHT of the atom in world space,
+/// not parented to specimenAnchor (avoids overlap).
 ///
 /// SETUP: Attach to the SAME GameObject as QuantumTransition and AtomBuilder.
-/// Call ShowTable() after transition completes.
 /// </summary>
 public class PeriodicTableUI : MonoBehaviour
 {
+    [Header("Table Position (relative to anchor)")]
+    public float tableRightOffset = 0.55f;
+    public float tableUpOffset = 0.05f;
+    public float tableForwardOffset = 0f;
+
     [Header("Table Layout")]
-    public float blockSize = 0.04f;
-    public float blockGap = 0.006f;
-    public float blockDepth = 0.008f;
-    public Vector3 tableOffset = new Vector3(0, 0.35f, 0);
+    public float blockSize = 0.045f;
+    public float blockGap = 0.005f;
+    public float blockDepth = 0.006f;
 
     [Header("Interaction")]
     public float highlightDistance = 0.06f;
@@ -29,393 +32,251 @@ public class PeriodicTableUI : MonoBehaviour
     public Color alkaliMetalColor = new Color(1f, 0.4f, 0.35f);
     public Color alkalineEarthColor = new Color(1f, 0.7f, 0.2f);
     public Color metalloidColor = new Color(0.3f, 0.8f, 0.8f);
-    public Color nonmetalColor = new Color(0.4f, 0.85f, 0.4f);
-    public Color halogenColor = new Color(0.4f, 0.7f, 1f);
     public Color postTransitionColor = new Color(0.7f, 0.7f, 0.8f);
+    public Color halogenColor = new Color(0.4f, 0.7f, 1f);
 
-    // =============================================
-    //  PERIODIC TABLE DATA
-    // =============================================
-
-    // Grid positions: row, col for standard periodic table layout
-    static readonly int[,] GridPositions = {
-        {0, 0},  // H
-        {0, 17}, // He
-        {1, 0},  // Li
-        {1, 1},  // Be
-        {1, 12}, // B
-        {1, 13}, // C
-        {1, 14}, // N
-        {1, 15}, // O
-        {1, 16}, // F
-        {1, 17}, // Ne
-        {2, 0},  // Na
-        {2, 1},  // Mg
-        {2, 12}, // Al
-        {2, 13}, // Si
-        {2, 14}, // P
-        {2, 15}, // S
-        {2, 16}, // Cl
-        {2, 17}, // Ar
-        {3, 0},  // K
-        {3, 1},  // Ca
+    // Compact grid: 8 columns, 4 rows
+    static readonly int[,] Grid = {
+        {0,0},{0,7},
+        {1,0},{1,1},{1,2},{1,3},{1,4},{1,5},{1,6},{1,7},
+        {2,0},{2,1},{2,2},{2,3},{2,4},{2,5},{2,6},{2,7},
+        {3,0},{3,1},
     };
 
-    // Category for each element (index into color array)
-    // 0=reactive nonmetal, 1=noble gas, 2=alkali, 3=alkaline earth,
-    // 4=metalloid, 5=nonmetal, 6=halogen, 7=post-transition metal
-    static readonly int[] Categories = {
-        0, 1, 2, 3, 4, 5, 5, 5, 6, 1,
-        2, 3, 7, 4, 5, 5, 6, 1, 2, 3
+    static readonly int[] Cat = {
+        0,1,2,3,4,0,0,0,6,1,
+        2,3,5,4,0,0,6,1,2,3
     };
-
-    // =============================================
-    //  RUNTIME STATE
-    // =============================================
 
     private GameObject tableRoot;
     private Transform specimenAnchor;
     private AtomBuilder atomBuilder;
     private TextMeshProUGUI scaleLabel;
 
-    private List<GameObject> blockObjects = new List<GameObject>();
-    private List<Renderer> blockRenderers = new List<Renderer>();
-    private List<Material> originalMaterials = new List<Material>();
-    private List<Transform> fingerTips = new List<Transform>();
-    private bool fingerTipsFound = false;
-    private int currentHighlight = -1;
-    private int selectedElement = -1;
-    private float lastSelectTime = -10f;
-    private bool tableVisible = false;
+    private List<GameObject> blocks = new List<GameObject>();
+    private List<Renderer> renderers = new List<Renderer>();
+    private List<Color> baseColors = new List<Color>();
+    private List<Transform> tips = new List<Transform>();
+    private bool tipsFound = false;
+    private int highlight = -1;
+    private float lastSelect = -10f;
+    private bool visible = false;
 
-    // =============================================
-    //  PUBLIC API
-    // =============================================
-
-    /// <summary>
-    /// Creates and shows the periodic table above the atom.
-    /// </summary>
     public void ShowTable(Transform anchor, AtomBuilder builder, TextMeshProUGUI label)
     {
         specimenAnchor = anchor;
         atomBuilder = builder;
         scaleLabel = label;
 
-        if (tableRoot != null) Destroy(tableRoot);
+        if (tableRoot) Destroy(tableRoot);
 
+        // IMPORTANT: Create as root object (NOT child of anchor)
+        // so it doesn't move with the atom or get overlapped
         tableRoot = new GameObject("PeriodicTable");
-        tableRoot.transform.SetParent(anchor, false);
-        tableRoot.transform.localPosition = tableOffset;
-        tableRoot.transform.localRotation = Quaternion.identity;
+
+        // Position to the RIGHT of the anchor in world space
+        Vector3 anchorPos = anchor.position;
+        tableRoot.transform.position = anchorPos +
+            new Vector3(tableRightOffset, tableUpOffset, tableForwardOffset);
+        tableRoot.transform.rotation = Quaternion.identity;
         tableRoot.transform.localScale = Vector3.one;
 
-        // Add billboard to face the player
         tableRoot.AddComponent<FaceCamera>();
 
+        CreateTitle();
         CreateBlocks();
-        tableVisible = true;
+        visible = true;
 
-        Debug.Log("[PT] Periodic table created with " + blockObjects.Count + " blocks");
+        Debug.Log("[PT] Table at world pos: " + tableRoot.transform.position);
     }
 
     public void HideTable()
     {
-        if (tableRoot != null)
-        {
-            Destroy(tableRoot);
-            tableRoot = null;
-        }
-        blockObjects.Clear();
-        blockRenderers.Clear();
-        originalMaterials.Clear();
-        tableVisible = false;
+        if (tableRoot) Destroy(tableRoot);
+        tableRoot = null;
+        blocks.Clear(); renderers.Clear(); baseColors.Clear();
+        visible = false;
     }
-
-    // =============================================
-    //  UPDATE -- Finger interaction
-    // =============================================
 
     void Update()
     {
-        if (!tableVisible || tableRoot == null) return;
+        if (!visible || !tableRoot) return;
 
-        if (!fingerTipsFound)
-        {
-            FindFingerTips();
-            return;
-        }
+        if (!tipsFound) { FindTips(); return; }
 
-        // Check for closest block to any fingertip
         int closest = -1;
         float closestDist = float.MaxValue;
 
-        for (int fi = 0; fi < fingerTips.Count; fi++)
+        for (int fi = tips.Count - 1; fi >= 0; fi--)
         {
-            Transform tip = fingerTips[fi];
-            if (tip == null) continue;
-
-            for (int bi = 0; bi < blockObjects.Count; bi++)
+            if (!tips[fi]) { tips.RemoveAt(fi); if (tips.Count == 0) tipsFound = false; continue; }
+            for (int bi = 0; bi < blocks.Count; bi++)
             {
-                if (blockObjects[bi] == null) continue;
-                float dist = Vector3.Distance(tip.position, blockObjects[bi].transform.position);
-                if (dist < closestDist)
-                {
-                    closestDist = dist;
-                    closest = bi;
-                }
+                if (!blocks[bi]) continue;
+                float d = Vector3.Distance(tips[fi].position, blocks[bi].transform.position);
+                if (d < closestDist) { closestDist = d; closest = bi; }
             }
         }
 
-        // Update highlight
         if (closest >= 0 && closestDist < highlightDistance)
         {
-            SetHighlight(closest);
-
-            // Select on touch
-            if (closestDist < selectDistance && Time.time - lastSelectTime > selectCooldown)
-            {
-                SelectElement(closest);
-            }
+            SetHL(closest);
+            if (closestDist < selectDistance && Time.time - lastSelect > selectCooldown)
+                Select(closest);
         }
         else
         {
-            ClearHighlight();
+            ClearHL();
         }
     }
 
-    // =============================================
-    //  BLOCK CREATION
-    // =============================================
+    void CreateTitle()
+    {
+        GameObject t = new GameObject("Title");
+        t.transform.SetParent(tableRoot.transform, false);
+        float step = blockSize + blockGap;
+        t.transform.localPosition = new Vector3(0, step * 1.0f, 0);
+        t.transform.localScale = Vector3.one * 0.008f;
+        TextMeshPro tmp = t.AddComponent<TextMeshPro>();
+        tmp.text = "Select Element"; tmp.fontSize = 6f;
+        tmp.color = Color.white; tmp.alignment = TextAlignmentOptions.Center;
+    }
 
     void CreateBlocks()
     {
-        blockObjects.Clear();
-        blockRenderers.Clear();
-        originalMaterials.Clear();
-
+        blocks.Clear(); renderers.Clear(); baseColors.Clear();
         float step = blockSize + blockGap;
+        float cx = 3.5f * step, cy = 1.5f * step;
 
-        // Center the table: 18 columns, 4 rows
-        float centerX = 8.5f * step;
-        float centerY = 1.5f * step;
-
-        Color[] categoryColors = {
-            reactiveNonmetalColor, nobleGasColor, alkaliMetalColor,
-            alkalineEarthColor, metalloidColor, nonmetalColor,
-            halogenColor, postTransitionColor
-        };
+        Color[] cc = { reactiveNonmetalColor, nobleGasColor, alkaliMetalColor,
+                       alkalineEarthColor, metalloidColor, postTransitionColor, halogenColor };
 
         for (int z = 0; z < 20; z++)
         {
-            int row = GridPositions[z, 0];
-            int col = GridPositions[z, 1];
+            float x = Grid[z, 1] * step - cx;
+            float y = -Grid[z, 0] * step + cy;
+            Color col = cc[Cat[z]];
 
-            float x = col * step - centerX;
-            float y = -row * step + centerY; // negative because rows go down
+            GameObject blk = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            blk.name = "Block_" + AtomBuilder.ElementSymbols[z];
+            blk.transform.SetParent(tableRoot.transform, false);
+            blk.transform.localPosition = new Vector3(x, y, 0);
+            blk.transform.localScale = new Vector3(blockSize, blockSize, blockDepth);
 
-            GameObject block = CreateSingleBlock(z, x, y, categoryColors[Categories[z]]);
-            blockObjects.Add(block);
+            Renderer rn = blk.GetComponent<Renderer>();
+            rn.material = MakeBlockMat(col);
+            renderers.Add(rn); baseColors.Add(col);
+
+            BoxCollider bc = blk.GetComponent<BoxCollider>();
+            if (bc) bc.isTrigger = true;
+
+            // Block label
+            int aN = z + 1;
+            string sym = AtomBuilder.ElementSymbols[z];
+            string nm = AtomBuilder.ElementNames[z];
+            int mass = AtomBuilder.MassNumbers[z];
+
+            string txt = "<size=35%>" + aN + "   " + mass + "</size>\n" +
+                        "<b><size=130%>" + sym + "</size></b>\n" +
+                        "<size=28%>" + nm + "</size>";
+
+            GameObject lbl = new GameObject("Lbl");
+            lbl.transform.SetParent(blk.transform, false);
+            lbl.transform.localPosition = new Vector3(0, 0, -0.55f);
+            lbl.transform.localScale = Vector3.one * 0.65f;
+
+            TextMeshPro tp = lbl.AddComponent<TextMeshPro>();
+            tp.text = txt; tp.fontSize = 4f; tp.color = Color.white;
+            tp.alignment = TextAlignmentOptions.Center;
+            tp.overflowMode = TextOverflowModes.Overflow;
+            tp.fontStyle = FontStyles.Bold;
+            RectTransform rt = lbl.GetComponent<RectTransform>();
+            if (rt) rt.sizeDelta = new Vector2(1f, 1f);
+
+            blocks.Add(blk);
         }
     }
 
-    GameObject CreateSingleBlock(int elementIndex, float x, float y, Color color)
+    void SetHL(int i)
     {
-        // Create block cube
-        GameObject block = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        block.name = "Block_" + AtomBuilder.ElementSymbols[elementIndex];
-        block.transform.SetParent(tableRoot.transform, false);
-        block.transform.localPosition = new Vector3(x, y, 0);
-        block.transform.localScale = new Vector3(blockSize, blockSize, blockDepth);
+        if (highlight == i) return;
+        ClearHL(); highlight = i;
+        if (i < 0 || i >= renderers.Count || !renderers[i]) return;
 
-        // Set color
-        Renderer rend = block.GetComponent<Renderer>();
-        Material mat = CreateBlockMaterial(color);
-        rend.material = mat;
-        blockRenderers.Add(rend);
-        originalMaterials.Add(new Material(mat)); // store copy for reset
-
-        // Make collider a trigger for interaction
-        BoxCollider bc = block.GetComponent<BoxCollider>();
-        if (bc != null) bc.isTrigger = true;
-
-        // Add text label on the front face
-        int atomicNum = elementIndex + 1;
-        int massNum = AtomBuilder.MassNumbers[elementIndex];
-        string symbol = AtomBuilder.ElementSymbols[elementIndex];
-        string elName = AtomBuilder.ElementNames[elementIndex];
-
-        // Format: atomic number top-left, mass top-right, symbol center, name bottom
-        string labelText = "<size=40%><align=left>" + atomicNum + "  " + massNum + "</align></size>\n" +
-                          "<b>" + symbol + "</b>\n" +
-                          "<size=30%>" + elName + "</size>";
-
-        GameObject labelObj = new GameObject("Label");
-        labelObj.transform.SetParent(block.transform, false);
-        // Position slightly in front of the cube face
-        labelObj.transform.localPosition = new Vector3(0, 0, -0.6f);
-        labelObj.transform.localScale = Vector3.one * 0.8f;
-        labelObj.transform.localRotation = Quaternion.identity;
-
-        TextMeshPro tmp = labelObj.AddComponent<TextMeshPro>();
-        tmp.text = labelText;
-        tmp.fontSize = 3f;
-        tmp.color = Color.white;
-        tmp.alignment = TextAlignmentOptions.Center;
-        tmp.enableAutoSizing = false;
-        tmp.overflowMode = TextOverflowModes.Overflow;
-
-        // Make text readable (TMP size relative to parent cube)
-        RectTransform rt = labelObj.GetComponent<RectTransform>();
-        if (rt != null)
-        {
-            rt.sizeDelta = new Vector2(1f, 1f);
-        }
-
-        return block;
+        blocks[i].transform.localScale = new Vector3(
+            blockSize * 1.3f, blockSize * 1.3f, blockDepth * 2f);
+        Material m = renderers[i].material;
+        Color c = baseColors[i];
+        m.color = new Color(Mathf.Min(c.r + 0.3f, 1), Mathf.Min(c.g + 0.3f, 1), Mathf.Min(c.b + 0.3f, 1));
+        if (m.HasProperty("_EmissionColor"))
+        { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", c * 0.6f); }
     }
 
-    // =============================================
-    //  HIGHLIGHT & SELECTION
-    // =============================================
-
-    void SetHighlight(int index)
+    void ClearHL()
     {
-        if (currentHighlight == index) return;
-
-        ClearHighlight();
-        currentHighlight = index;
-
-        if (index >= 0 && index < blockRenderers.Count && blockRenderers[index] != null)
+        if (highlight >= 0 && highlight < blocks.Count && blocks[highlight])
         {
-            // Scale up and brighten
-            blockObjects[index].transform.localScale = new Vector3(
-                blockSize * 1.3f, blockSize * 1.3f, blockDepth * 2f);
-
-            Material mat = blockRenderers[index].material;
-            Color c = mat.color;
-            mat.color = new Color(
-                Mathf.Min(c.r + 0.3f, 1f),
-                Mathf.Min(c.g + 0.3f, 1f),
-                Mathf.Min(c.b + 0.3f, 1f));
-
-            if (mat.HasProperty("_EmissionColor"))
+            blocks[highlight].transform.localScale = new Vector3(blockSize, blockSize, blockDepth);
+            if (renderers[highlight])
             {
-                mat.EnableKeyword("_EMISSION");
-                mat.SetColor("_EmissionColor", c * 0.5f);
+                renderers[highlight].material.color = baseColors[highlight];
+                if (renderers[highlight].material.HasProperty("_EmissionColor"))
+                    renderers[highlight].material.SetColor("_EmissionColor", baseColors[highlight] * 0.15f);
             }
         }
+        highlight = -1;
     }
 
-    void ClearHighlight()
+    void Select(int idx)
     {
-        if (currentHighlight >= 0 && currentHighlight < blockObjects.Count)
-        {
-            // Reset scale
-            if (blockObjects[currentHighlight] != null)
-                blockObjects[currentHighlight].transform.localScale =
-                    new Vector3(blockSize, blockSize, blockDepth);
+        int z = idx + 1;
+        lastSelect = Time.time;
 
-            // Reset material
-            if (blockRenderers[currentHighlight] != null &&
-                currentHighlight < originalMaterials.Count)
-            {
-                blockRenderers[currentHighlight].material =
-                    new Material(originalMaterials[currentHighlight]);
-            }
-        }
-        currentHighlight = -1;
-    }
+        Debug.Log("[PT] Selected: " + AtomBuilder.ElementNames[idx] + " (Z=" + z + ")");
 
-    void SelectElement(int blockIndex)
-    {
-        int atomicNumber = blockIndex + 1;
-        lastSelectTime = Time.time;
-        selectedElement = atomicNumber;
-
-        Debug.Log("[PT] Selected: " + AtomBuilder.ElementNames[blockIndex] +
-                  " (Z=" + atomicNumber + ")");
-
-        // Rebuild atom
-        if (atomBuilder != null && specimenAnchor != null)
+        if (atomBuilder && specimenAnchor)
         {
             atomBuilder.DestroyAtom();
-            GameObject newAtom = atomBuilder.BuildSpecificAtom(specimenAnchor, atomicNumber);
-
-            // Quick scale-in animation
-            if (newAtom != null)
-                StartCoroutine(ScaleIn(newAtom.transform, 0.5f));
-
-            // Update label
-            if (scaleLabel != null)
-                scaleLabel.text = "Quantum World\n" + atomBuilder.GetCurrentElementName();
+            GameObject a = atomBuilder.BuildSpecificAtom(specimenAnchor, z);
+            if (a) StartCoroutine(ScaleIn(a.transform, 0.4f));
+            if (scaleLabel) scaleLabel.text = "Quantum World\n" + atomBuilder.GetCurrentElementName();
         }
 
-        // Flash the selected block
-        if (blockRenderers[blockIndex] != null)
-        {
-            Material mat = blockRenderers[blockIndex].material;
-            mat.color = Color.white;
-        }
+        if (renderers[idx]) renderers[idx].material.color = Color.white;
     }
 
-    System.Collections.IEnumerator ScaleIn(Transform t, float duration)
+    System.Collections.IEnumerator ScaleIn(Transform t, float dur)
     {
         t.localScale = Vector3.zero;
-        float elapsed = 0f;
-        while (elapsed < duration)
+        float e = 0;
+        while (e < dur)
         {
-            elapsed += Time.deltaTime;
-            float curve = 1f - Mathf.Pow(1f - (elapsed / duration), 3f);
-            t.localScale = Vector3.one * curve;
+            e += Time.deltaTime;
+            t.localScale = Vector3.one * (1f - Mathf.Pow(1f - e / dur, 3f));
             yield return null;
         }
         t.localScale = Vector3.one;
     }
 
-    // =============================================
-    //  FINGER TIP DETECTION
-    // =============================================
-
-    void FindFingerTips()
+    void FindTips()
     {
-        fingerTips.Clear();
-
-        GameObject[] all = FindObjectsOfType<GameObject>();
-        foreach (var obj in all)
+        tips.Clear();
+        foreach (var obj in FindObjectsOfType<GameObject>())
         {
-            if (!obj.activeInHierarchy) continue;
-            if (obj.name == "XRHand_IndexTip")
-            {
-                fingerTips.Add(obj.transform);
-            }
+            if (obj.activeInHierarchy && obj.name == "XRHand_IndexTip")
+                tips.Add(obj.transform);
         }
-
-        if (fingerTips.Count > 0)
-        {
-            fingerTipsFound = true;
-            Debug.Log("[PT] Found " + fingerTips.Count + " index tip bones");
-        }
+        if (tips.Count > 0) { tipsFound = true; Debug.Log("[PT] Tips found: " + tips.Count); }
     }
 
-    // =============================================
-    //  HELPERS
-    // =============================================
-
-    Material CreateBlockMaterial(Color color)
+    Material MakeBlockMat(Color c)
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Diffuse");
-
-        Material mat = new Material(shader);
-        mat.color = color;
-
-        if (mat.HasProperty("_EmissionColor"))
-        {
-            mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", color * 0.15f);
-        }
-
-        return mat;
+        Shader s = Shader.Find("Universal Render Pipeline/Lit");
+        if (!s) s = Shader.Find("Standard");
+        if (!s) s = Shader.Find("Diffuse");
+        Material m = new Material(s); m.color = c;
+        if (m.HasProperty("_EmissionColor"))
+        { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", c * 0.15f); }
+        return m;
     }
 }
