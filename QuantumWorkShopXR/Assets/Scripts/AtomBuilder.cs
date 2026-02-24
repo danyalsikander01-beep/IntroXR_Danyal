@@ -2,11 +2,9 @@ using UnityEngine;
 using TMPro;
 
 /// <summary>
-/// STEP 3 (FIXED): Nucleus + shell rings + orbital shapes.
-/// Fixes:
-///   - S-orbitals now sized to match their shell radius (not tiny at center)
-///   - P-orbitals lobes extend from center out to shell radius (not hidden in nucleus)
-///   - Labels much larger for VR readability
+/// Builds a 3D atom model: nucleus + shells + orbitals + labels.
+/// Fixes: text billboard direction, p-orbital lobe shape.
+/// Supports both random and specific element building.
 ///
 /// SETUP: Attach to the SAME GameObject as QuantumTransition.
 /// </summary>
@@ -25,7 +23,7 @@ public class AtomBuilder : MonoBehaviour
     public float sLineWidth = 0.004f;
 
     [Header("P-Orbital Settings")]
-    public float pLobeWidth = 0.03f;
+    public float pLobeWidth = 0.04f;
 
     [Header("Label Settings")]
     public float shellLabelSize = 6f;
@@ -65,7 +63,11 @@ public class AtomBuilder : MonoBehaviour
         12,12,14,14,16,16,18,22,20,20
     };
 
-    // Electrons per subshell in Aufbau order: 1s, 2s, 2p, 3s, 3p, 4s
+    public static readonly int[] MassNumbers = {
+        1,4,7,9,11,12,14,16,19,20,
+        23,24,27,28,31,32,35,40,39,40
+    };
+
     public static readonly int[][] ElectronConfigs = {
         new[]{1},             // H
         new[]{2},             // He
@@ -100,15 +102,25 @@ public class AtomBuilder : MonoBehaviour
     private GameObject atomRoot;
     private int currentAtomicNumber = -1;
     private Material lineMaterial;
+    private Transform currentParent;
 
     // =============================================
     //  PUBLIC API
     // =============================================
 
+    /// <summary>Build a random element (1-20).</summary>
     public GameObject BuildAtom(Transform parent)
     {
+        int z = Random.Range(1, 21);
+        return BuildSpecificAtom(parent, z);
+    }
+
+    /// <summary>Build a specific element by atomic number (1-20).</summary>
+    public GameObject BuildSpecificAtom(Transform parent, int atomicNumber)
+    {
         DestroyAtom();
-        currentAtomicNumber = Random.Range(1, 21);
+        currentParent = parent;
+        currentAtomicNumber = Mathf.Clamp(atomicNumber, 1, 20);
 
         Debug.Log("[Atom] Building: " + ElementNames[currentAtomicNumber - 1] +
                   " (Z=" + currentAtomicNumber + ")");
@@ -145,6 +157,7 @@ public class AtomBuilder : MonoBehaviour
     }
 
     public int GetCurrentAtomicNumber() { return currentAtomicNumber; }
+    public Transform GetCurrentParent() { return currentParent; }
 
     // =============================================
     //  NUCLEUS
@@ -225,18 +238,14 @@ public class AtomBuilder : MonoBehaviour
         }
     }
 
-    // ---- SHELL RING ----
-
     void CreateShellRing(int shellNumber, float radius)
     {
-        // Horizontal ring (XZ plane)
         GameObject ring1 = new GameObject("Shell_" + shellNumber + "_H");
         ring1.transform.SetParent(atomRoot.transform, false);
         LineRenderer lr1 = ring1.AddComponent<LineRenderer>();
         SetupLine(lr1, shellRingColor, ringLineWidth);
         SetCircle(lr1, radius, 64);
 
-        // Vertical ring (XY plane)
         GameObject ring2 = new GameObject("Shell_" + shellNumber + "_V");
         ring2.transform.SetParent(atomRoot.transform, false);
         ring2.transform.localRotation = Quaternion.Euler(90, 0, 0);
@@ -246,32 +255,25 @@ public class AtomBuilder : MonoBehaviour
         SetupLine(lr2, dimColor, ringLineWidth * 0.7f);
         SetCircle(lr2, radius, 64);
 
-        // Shell label -- positioned to the right of the ring
         CreateLabel("n=" + shellNumber, atomRoot.transform,
                    new Vector3(radius + 0.05f, 0, 0), shellLabelSize);
     }
 
-    // ---- S-ORBITAL: wireframe sphere sized to match shell radius ----
-    // The wireframe circle radius = shellRadius so it visually sits ON the shell
+    // ---- S-ORBITAL: wireframe sphere at shell radius ----
 
     void CreateSOrbital(string label, int shell, float shellRadius)
     {
         GameObject sObj = new GameObject("Orbital_" + label);
         sObj.transform.SetParent(atomRoot.transform, false);
 
-        // Use shell radius as the wireframe size
-        // so the s-orbital visually wraps around at the shell level
         float orbRadius = shellRadius;
 
-        // 3 great circles to show a spherical shape
-        // Circle 1: XZ plane (same as shell ring but in cyan)
         GameObject c1 = new GameObject("S_XZ");
         c1.transform.SetParent(sObj.transform, false);
         LineRenderer lr1 = c1.AddComponent<LineRenderer>();
         SetupLine(lr1, sOrbitalColor, sLineWidth);
         SetCircle(lr1, orbRadius, 48);
 
-        // Circle 2: tilted 60 degrees for visual variety (not overlapping shell ring exactly)
         GameObject c2 = new GameObject("S_Tilt1");
         c2.transform.SetParent(sObj.transform, false);
         c2.transform.localRotation = Quaternion.Euler(60, 0, 0);
@@ -279,7 +281,6 @@ public class AtomBuilder : MonoBehaviour
         SetupLine(lr2, sOrbitalColor * 0.85f, sLineWidth);
         SetCircle(lr2, orbRadius, 48);
 
-        // Circle 3: tilted 60 degrees the other way
         GameObject c3 = new GameObject("S_Tilt2");
         c3.transform.SetParent(sObj.transform, false);
         c3.transform.localRotation = Quaternion.Euler(60, 90, 0);
@@ -287,27 +288,20 @@ public class AtomBuilder : MonoBehaviour
         SetupLine(lr3, sOrbitalColor * 0.85f, sLineWidth);
         SetCircle(lr3, orbRadius, 48);
 
-        // Label above the s-orbital
         CreateLabel(label, sObj.transform,
                    new Vector3(0, orbRadius + 0.04f, 0), orbitalLabelSize);
-
-        Debug.Log("[Atom] S-orbital: " + label + " radius=" + orbRadius.ToString("F3"));
     }
 
-    // ---- P-ORBITALS: 3 dumbbells extending outward from nucleus to shell ----
-    // Lobes are sized so they extend from near the nucleus out to the shell radius
+    // ---- P-ORBITALS: 3 dumbbells with balloon-shaped lobes ----
 
     void CreatePOrbitals(string label, int shell, float shellRadius)
     {
         GameObject pObj = new GameObject("Orbitals_" + label);
         pObj.transform.SetParent(atomRoot.transform, false);
 
-        // Lobe half-length: extends from nucleus edge to shell radius
-        // Center of each lobe sits at shellRadius * 0.5
-        // So the lobe stretches from near center to the shell ring
-        float lobeHalfLen = shellRadius * 0.45f;
         float lobeCenterDist = shellRadius * 0.55f;
-        float lobeW = pLobeWidth + (shell - 1) * 0.008f;
+        float lobeLength = shellRadius * 0.45f;
+        float lobeW = pLobeWidth + (shell - 1) * 0.01f;
 
         Vector3[] axes = { Vector3.right, Vector3.up, Vector3.forward };
         Color[] colors = { pxColor, pyColor, pzColor };
@@ -316,33 +310,30 @@ public class AtomBuilder : MonoBehaviour
         for (int i = 0; i < 3; i++)
         {
             CreateDumbbell(pObj.transform, label, names[i], axes[i],
-                          lobeCenterDist, lobeHalfLen, lobeW, colors[i],
+                          lobeCenterDist, lobeLength, lobeW, colors[i],
                           shellRadius);
         }
-
-        Debug.Log("[Atom] P-orbitals: " + label +
-                  " lobeDist=" + lobeCenterDist.ToString("F3"));
     }
 
     void CreateDumbbell(Transform parent, string subLabel, string axisName,
-                       Vector3 axis, float centerDist, float halfLen,
+                       Vector3 axis, float centerDist, float lobeLen,
                        float width, Color color, float shellRadius)
     {
         GameObject dbObj = new GameObject("Orbital_" + subLabel + "_" + axisName);
         dbObj.transform.SetParent(parent, false);
 
-        // Positive lobe: centered at +axis * centerDist
-        CreateLobe(dbObj.transform, axis * centerDist, axis, halfLen, width,
-                  color, "Lobe_+");
+        // Positive lobe (outer end fatter)
+        CreateBalloonLobe(dbObj.transform, axis, centerDist, lobeLen, width,
+                         color, "Lobe_+", false);
 
-        // Negative lobe: centered at -axis * centerDist (slightly darker)
+        // Negative lobe (darker)
         Color darkColor = color * 0.75f;
         darkColor.a = color.a;
-        CreateLobe(dbObj.transform, -axis * centerDist, axis, halfLen, width,
-                  darkColor, "Lobe_-");
+        CreateBalloonLobe(dbObj.transform, -axis, centerDist, lobeLen, width,
+                         darkColor, "Lobe_-", false);
 
-        // Axis line through both lobes
-        float lineExtent = centerDist + halfLen + 0.01f;
+        // Axis line
+        float lineExtent = centerDist + lobeLen * 0.6f + 0.01f;
         GameObject axisLine = new GameObject("Axis");
         axisLine.transform.SetParent(dbObj.transform, false);
         LineRenderer lr = axisLine.AddComponent<LineRenderer>();
@@ -354,34 +345,73 @@ public class AtomBuilder : MonoBehaviour
         lr.SetPosition(0, -axis * lineExtent);
         lr.SetPosition(1, axis * lineExtent);
 
-        // Label beyond the positive lobe tip
-        float labelDist = centerDist + halfLen + 0.04f;
+        // Label beyond the positive lobe
+        float labelDist = centerDist + lobeLen * 0.6f + 0.04f;
         CreateLabel(subLabel + axisName.Substring(1), dbObj.transform,
                    axis * labelDist, orbitalLabelSize);
     }
 
-    void CreateLobe(Transform parent, Vector3 position, Vector3 axis,
-                   float halfLength, float width, Color color, string name)
+    /// <summary>
+    /// Creates a balloon-shaped lobe using two overlapping spheres:
+    /// a large "bulb" at the tip and a smaller "neck" near center.
+    /// This gives the teardrop-like shape of real p-orbitals.
+    /// </summary>
+    void CreateBalloonLobe(Transform parent, Vector3 axis, float centerDist,
+                          float lobeLen, float width, Color color,
+                          string name, bool flip)
     {
-        GameObject lobe = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-        lobe.name = name;
-        lobe.transform.SetParent(parent, false);
-        lobe.transform.localPosition = position;
+        GameObject lobeGroup = new GameObject(name);
+        lobeGroup.transform.SetParent(parent, false);
 
-        // Capsule default is along Y -- rotate to match target axis
+        // Main bulb: large sphere at the outer position (fat tip)
+        float bulbSize = width * 1.1f;
+        Vector3 bulbPos = axis * (centerDist + lobeLen * 0.15f);
+
+        GameObject bulb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        bulb.name = "Bulb";
+        bulb.transform.SetParent(lobeGroup.transform, false);
+        bulb.transform.localPosition = bulbPos;
+        // Scale: fatter perpendicular to axis, elongated along axis
+        Vector3 bulbScale;
         if (axis == Vector3.right || axis == -Vector3.right)
-            lobe.transform.localRotation = Quaternion.Euler(0, 0, 90);
+            bulbScale = new Vector3(lobeLen * 0.6f, bulbSize, bulbSize);
         else if (axis == Vector3.forward || axis == -Vector3.forward)
-            lobe.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            bulbScale = new Vector3(bulbSize, bulbSize, lobeLen * 0.6f);
+        else
+            bulbScale = new Vector3(bulbSize, lobeLen * 0.6f, bulbSize);
+        bulb.transform.localScale = bulbScale;
 
-        lobe.transform.localScale = new Vector3(width, halfLength, width);
+        Collider c1 = bulb.GetComponent<Collider>();
+        if (c1 != null) Destroy(c1);
+        Renderer r1 = bulb.GetComponent<Renderer>();
+        if (r1 != null) r1.material = CreateTransparentMat(color);
 
-        Collider col = lobe.GetComponent<Collider>();
-        if (col != null) Destroy(col);
+        // Neck: smaller sphere closer to nucleus (thin connection)
+        float neckSize = width * 0.5f;
+        Vector3 neckPos = axis * (centerDist * 0.4f);
 
-        Renderer rend = lobe.GetComponent<Renderer>();
-        if (rend != null)
-            rend.material = CreateTransparentMat(color);
+        GameObject neck = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        neck.name = "Neck";
+        neck.transform.SetParent(lobeGroup.transform, false);
+        neck.transform.localPosition = neckPos;
+        Vector3 neckScale;
+        if (axis == Vector3.right || axis == -Vector3.right)
+            neckScale = new Vector3(lobeLen * 0.35f, neckSize, neckSize);
+        else if (axis == Vector3.forward || axis == -Vector3.forward)
+            neckScale = new Vector3(neckSize, neckSize, lobeLen * 0.35f);
+        else
+            neckScale = new Vector3(neckSize, lobeLen * 0.35f, neckSize);
+        neck.transform.localScale = neckScale;
+
+        Collider c2 = neck.GetComponent<Collider>();
+        if (c2 != null) Destroy(c2);
+        Renderer r2 = neck.GetComponent<Renderer>();
+        if (r2 != null)
+        {
+            Color neckColor = color;
+            neckColor.a *= 0.8f;
+            r2.material = CreateTransparentMat(neckColor);
+        }
     }
 
     // =============================================
@@ -562,7 +592,8 @@ public class AtomBuilder : MonoBehaviour
 }
 
 /// <summary>
-/// Billboard: makes text always face the player camera.
+/// FIXED billboard: copies camera's horizontal forward direction
+/// so text always faces the player and stays upright.
 /// </summary>
 public class FaceCamera : MonoBehaviour
 {
@@ -580,9 +611,10 @@ public class FaceCamera : MonoBehaviour
             if (Camera.main != null) cam = Camera.main.transform;
             return;
         }
-        Vector3 dir = cam.position - transform.position;
-        dir.y = 0;
-        if (dir.sqrMagnitude > 0.001f)
-            transform.rotation = Quaternion.LookRotation(dir);
+        // Match camera's forward direction (horizontal only) so text faces player
+        Vector3 camForward = cam.forward;
+        camForward.y = 0;
+        if (camForward.sqrMagnitude > 0.001f)
+            transform.rotation = Quaternion.LookRotation(camForward, Vector3.up);
     }
 }

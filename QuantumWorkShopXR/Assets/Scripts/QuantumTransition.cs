@@ -3,21 +3,20 @@ using System.Collections;
 using TMPro;
 
 /// <summary>
-/// STEP 2: Transition + atom spawn.
-/// Pulse -> shrink -> hide specimen -> spawn atom nucleus -> grow in -> voice.
+/// Transition: pulse -> shrink -> hide specimen -> voice -> spawn atom -> show periodic table.
 ///
 /// SETUP:
-/// 1. Attach to QuantumTransition GameObject (same as before)
-/// 2. Also attach AtomBuilder.cs to the SAME GameObject
-/// 3. Wire references in Inspector (same 4 fields as before + voice clip)
+/// 1. Attach to QuantumTransition GameObject
+/// 2. Also attach AtomBuilder.cs AND PeriodicTableUI.cs to the SAME GameObject
+/// 3. Wire references in Inspector
 /// </summary>
 public class QuantumTransition : MonoBehaviour
 {
     [Header("Drag These in Inspector")]
-    public Transform specimenAnchor;       // SpecimenAnchor
-    public GameObject specimen;             // Specimen (the cyan sphere)
-    public TextMeshProUGUI scaleLabel;      // The ScaleLabel TextMeshProUGUI component
-    public ScaleLabel scaleLabelScript;     // The ScaleLabel.cs script component
+    public Transform specimenAnchor;
+    public GameObject specimen;
+    public TextMeshProUGUI scaleLabel;
+    public ScaleLabel scaleLabelScript;
 
     [Header("Voice Line (Optional)")]
     public AudioClip welcomeVoice;
@@ -143,11 +142,11 @@ public class QuantumTransition : MonoBehaviour
         // ---- Pause before atom ----
         yield return new WaitForSeconds(pauseBeforeAtom);
 
-        // ---- Reset anchor scale so atom has normal size ----
+        // ---- Reset anchor scale ----
         if (specimenAnchor != null)
             specimenAnchor.localScale = Vector3.one;
 
-        // ---- Build atom ----
+        // ---- Build initial random atom ----
         AtomBuilder builder = GetComponent<AtomBuilder>();
         GameObject atomRoot = null;
 
@@ -161,7 +160,7 @@ public class QuantumTransition : MonoBehaviour
             Debug.LogError("[QT] AtomBuilder not found! Add it to the same GameObject.");
         }
 
-        // ---- Grow atom in from zero ----
+        // ---- Grow atom in ----
         if (atomRoot != null)
         {
             atomRoot.transform.localScale = Vector3.zero;
@@ -170,7 +169,6 @@ public class QuantumTransition : MonoBehaviour
             {
                 elapsed += Time.deltaTime;
                 float t = elapsed / atomGrowTime;
-                // Ease-out cubic for a nice pop-in
                 float curve = 1f - Mathf.Pow(1f - t, 3f);
                 atomRoot.transform.localScale = Vector3.one * curve;
                 yield return null;
@@ -178,9 +176,21 @@ public class QuantumTransition : MonoBehaviour
             atomRoot.transform.localScale = Vector3.one;
         }
 
-        // ---- Update label with element name ----
+        // ---- Update label ----
         if (scaleLabel != null && builder != null)
             scaleLabel.text = "Quantum World\n" + builder.GetCurrentElementName();
+
+        // ---- Show periodic table for element selection ----
+        PeriodicTableUI tableUI = GetComponent<PeriodicTableUI>();
+        if (tableUI != null)
+        {
+            tableUI.ShowTable(specimenAnchor, builder, scaleLabel);
+            Debug.Log("[QT] Step 5: Periodic table shown");
+        }
+        else
+        {
+            Debug.Log("[QT] PeriodicTableUI not found - skipping element selection");
+        }
 
         Debug.Log("[QT] Transition complete!");
         InQuantumWorld = true;
