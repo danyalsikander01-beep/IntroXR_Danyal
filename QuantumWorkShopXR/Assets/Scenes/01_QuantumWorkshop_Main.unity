@@ -2578,8 +2578,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   nucleusRadius: 0.06
   nucleonSize: 0.02
+  shellBaseRadius: 0.15
+  shellSpacing: 0.14
+  ringLineWidth: 0.003
+  sLineWidth: 0.004
+  pLobeWidth: 0.03
+  shellLabelSize: 6
+  orbitalLabelSize: 5
+  elementLabelSize: 8
   protonColor: {r: 0.95, g: 0.25, b: 0.25, a: 1}
   neutronColor: {r: 0.3, g: 0.5, b: 1, a: 1}
+  shellRingColor: {r: 0.6, g: 0.6, b: 0.6, a: 0.7}
+  sOrbitalColor: {r: 0, g: 0.9, b: 1, a: 0.6}
+  pxColor: {r: 1, g: 0.55, b: 0, a: 0.5}
+  pyColor: {r: 0.5, g: 1, b: 0.2, a: 0.5}
+  pzColor: {r: 1, g: 0.3, b: 0.8, a: 0.5}
+  labelColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!1 &1942813462
 GameObject:
   m_ObjectHideFlags: 0
