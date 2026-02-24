@@ -4,26 +4,20 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Periodic table placed to the RIGHT of the user.
-/// Uses cam.right directly (NOT a forward+right blend).
-/// Table faces toward the user so text is always readable.
-/// Blocks are large enough to see and touch in MR.
+/// Uses cam.right directly for placement.
+/// Clears ScaleLabel to avoid overlap with atom's built-in label.
 /// </summary>
 public class PeriodicTableUI : MonoBehaviour
 {
     [Header("Layout")]
-    public float blockSize = 0.065f;    // BIGGER blocks for visibility
+    public float blockSize = 0.065f;
     public float blockGap = 0.006f;
-    public float blockDepth = 0.025f;   // Thicker so they look like real blocks
+    public float blockDepth = 0.025f;
 
     [Header("Interaction")]
     public float highlightDist = 0.08f;
     public float selectDist = 0.04f;
     public float cooldown = 1.0f;
-
-    [Header("Placement")]
-    public float tableDistance = 0.85f;  // How far to the right
-    public float tableForward = 0.15f;  // Slight forward offset
-    public float tableDown = 0.10f;     // Below eye level
 
     [Header("Colors")]
     public Color nonmetalC = new Color(0.5f, 0.9f, 0.5f);
@@ -34,15 +28,12 @@ public class PeriodicTableUI : MonoBehaviour
     public Color postTransC = new Color(0.7f, 0.7f, 0.8f);
     public Color halogenC = new Color(0.4f, 0.7f, 1f);
 
-    // Grid positions: {row, col} for each element Z=1..20
     static readonly int[,] Grid = {
-        {0,0},{0,7},                                            // H, He
-        {1,0},{1,1},{1,2},{1,3},{1,4},{1,5},{1,6},{1,7},       // Li-Ne
-        {2,0},{2,1},{2,2},{2,3},{2,4},{2,5},{2,6},{2,7},       // Na-Ar
-        {3,0},{3,1}                                             // K, Ca
+        {0,0},{0,7},
+        {1,0},{1,1},{1,2},{1,3},{1,4},{1,5},{1,6},{1,7},
+        {2,0},{2,1},{2,2},{2,3},{2,4},{2,5},{2,6},{2,7},
+        {3,0},{3,1}
     };
-    // Category per element: 0=nonmetal, 1=noble, 2=alkali, 3=alkaline,
-    //                        4=metalloid, 5=postTrans, 6=halogen
     static readonly int[] Cat = { 0, 1, 2, 3, 4, 0, 0, 0, 6, 1, 2, 3, 5, 4, 0, 0, 6, 1, 2, 3 };
 
     private GameObject tableRoot;
@@ -66,46 +57,40 @@ public class PeriodicTableUI : MonoBehaviour
         label = l;
         electronGame = GetComponent<ElectronGame>();
 
+        // OVERLAP FIX: Clear the ScaleLabel text
+        // The atom already has its own label from AtomBuilder.BuildElementLabel()
+        // so having the ScaleUI text too causes overlap
+        if (label) label.text = "";
+
         if (tableRoot) Destroy(tableRoot);
         tableRoot = new GameObject("PeriodicTable");
 
-        // =============================================
-        // PLACEMENT: Straight to the RIGHT of the user
-        // Uses cam.right directly, NOT a forward+right blend
-        // =============================================
         Transform cam = Camera.main ? Camera.main.transform : null;
         if (cam)
         {
             Vector3 camPos = cam.position;
 
-            // Get user's right direction (flattened to horizontal plane)
             Vector3 right = cam.right;
             right.y = 0f;
             right.Normalize();
 
-            // Get user's forward direction (flattened)
             Vector3 fwd = cam.forward;
             fwd.y = 0f;
             fwd.Normalize();
 
-            // Place table to the RIGHT with a tiny forward nudge
-            Vector3 tablePos = camPos + right * tableDistance + fwd * tableForward;
-            tablePos.y = camPos.y - tableDown;
+            // Place to the RIGHT: mostly right, tiny forward nudge
+            Vector3 tablePos = camPos + right * 0.85f + fwd * 0.15f;
+            tablePos.y = camPos.y - 0.10f;
 
             tableRoot.transform.position = tablePos;
 
-            // Face the table TOWARD the user
-            // LookRotation(toUser) makes +Z point at user
-            // TMP text faces +Z by default so it will be readable
-            Vector3 toUser = camPos - tablePos;
-            toUser.y = 0f;
-            if (toUser.sqrMagnitude > 0.001f)
-                tableRoot.transform.rotation = Quaternion.LookRotation(toUser.normalized, Vector3.up);
+            // +Z points AWAY from user, text at z=-0.55 faces user
+            Vector3 awayFromUser = tablePos - camPos;
+            awayFromUser.y = 0f;
+            if (awayFromUser.sqrMagnitude > 0.001f)
+                tableRoot.transform.rotation = Quaternion.LookRotation(awayFromUser.normalized, Vector3.up);
 
-            Debug.Log("[PT] Table at " + tablePos +
-                      " | cam at " + camPos +
-                      " | right=" + right +
-                      " | facing user");
+            Debug.Log("[PT] Table at " + tablePos + " | right=" + right);
         }
         else
         {
@@ -130,7 +115,6 @@ public class PeriodicTableUI : MonoBehaviour
         if (!vis || !tableRoot) return;
         if (!tipsOK) { FindTips(); return; }
 
-        // Find closest fingertip to any block
         int closest = -1;
         float cDist = float.MaxValue;
 
@@ -162,18 +146,13 @@ public class PeriodicTableUI : MonoBehaviour
         }
     }
 
-    // =============================================
-    // TITLE: Large and readable
-    // =============================================
     void MakeTitle()
     {
         var t = new GameObject("Title");
         t.transform.SetParent(tableRoot.transform, false);
 
         float step = blockSize + blockGap;
-        // Center above the 8-column grid
         t.transform.localPosition = new Vector3(0f, step * 1.6f, 0f);
-        // Much larger scale than before (was 0.007, now 0.025)
         t.transform.localScale = Vector3.one * 0.025f;
 
         var tmp = t.AddComponent<TextMeshPro>();
@@ -188,9 +167,6 @@ public class PeriodicTableUI : MonoBehaviour
         if (rt) rt.sizeDelta = new Vector2(25f, 4f);
     }
 
-    // =============================================
-    // ELEMENT BLOCKS with clean text (no sup/sub)
-    // =============================================
     void MakeBlocks()
     {
         blocks.Clear(); rends.Clear(); baseCols.Clear();
@@ -219,23 +195,15 @@ public class PeriodicTableUI : MonoBehaviour
             var bc = blk.GetComponent<BoxCollider>();
             if (bc) bc.isTrigger = true;
 
-            // Element data (0-indexed arrays)
             int atomicNum = z + 1;
             int mass = AtomBuilder.Mass[z];
             string sym = AtomBuilder.Sym[z];
             string nm = AtomBuilder.Names[z];
 
-            // =============================================
-            // TEXT: Clean line-based layout (no sup/sub)
-            // Line 1: atomic number (small)
-            // Line 2: SYMBOL (large bold)
-            // Line 3: name (small)
-            // Line 4: mass (small)
-            // =============================================
+            // Text on -Z face (faces user)
             var lbl = new GameObject("Lbl");
             lbl.transform.SetParent(blk.transform, false);
-            // +Z faces user (table faces user), so put text at +Z side
-            lbl.transform.localPosition = new Vector3(0, 0, 0.55f);
+            lbl.transform.localPosition = new Vector3(0, 0, -0.55f);
             lbl.transform.localScale = Vector3.one * 0.5f;
 
             var tp = lbl.AddComponent<TextMeshPro>();
@@ -293,7 +261,10 @@ public class PeriodicTableUI : MonoBehaviour
             builder.DestroyAtom();
             var a = builder.BuildSpecificAtom(specimenAnchor, z);
             if (a) StartCoroutine(ScaleIn(a.transform, 0.4f));
-            if (label) label.text = "Quantum World\n" + builder.GetCurrentElementName();
+
+            // OVERLAP FIX: Clear ScaleLabel - atom has its own label
+            if (label) label.text = "";
+
             if (electronGame) electronGame.StartGame(z);
         }
     }
